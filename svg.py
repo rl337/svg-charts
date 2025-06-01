@@ -73,12 +73,62 @@ class Style(object):
         if font is not None:
             self.attributes['font'] = font
 
+    def get_font(self):
+        return self.attributes.get('font', None)
+
+    def get_stroke(self):
+        return self.attributes.get('stroke', None)
+
+    def get_fill(self):
+        return self.attributes.get('fill', None)
+
+    def get_fill_opacity(self):
+        return self.attributes.get('fill-opacity', None)
+
+    def get_stroke_width(self):
+        return self.attributes.get('stroke-width', None)
+
+    def get_stroke_opacity(self):
+        return self.attributes.get('stroke-opacity', None)
+
+    def set_font(self, value):
+        self.attributes['font'] = value
+
+    def set_stroke(self, value):
+        self.attributes['stroke'] = value
+
+    def set_fill(self, value):
+        self.attributes['fill'] = value
+
+    def set_fill_opacity(self, value):
+        self.attributes['fill-opacity'] = value
+
+    def set_stroke_width(self, value):
+        self.attributes['stroke-width'] = value
+
+    def set_stroke_opacity(self, value):
+        self.attributes['stroke-opacity'] = value
+
     def __str__(self):
         return "; ".join([
             "{0}:{1}".format(x, self.attributes[x])
             for x in self.attributes
             if self.attributes[x] is not None
         ])
+
+    def copy(self):
+        font = self.attributes.get('font', None)
+        if font is not None:
+            font = font.copy()
+        return Style(
+            stroke=self.attributes['stroke'],
+            fill=self.attributes['fill'],
+            stroke_width=self.attributes['stroke-width'],
+            stroke_opacity=self.attributes['stroke-opacity'],
+            fill_opacity=self.attributes['fill-opacity'],
+            font=font
+        )
+
 
 class Font(object):
 
@@ -100,6 +150,13 @@ class Font(object):
             return ""
 
         return " ".join(parts)
+
+    def copy(self):
+        return Font(
+            face=self.face,
+            decoration=self.decoration,
+            size=self.size
+        )
 
 
 class SansSerif(Font):
@@ -126,16 +183,42 @@ class SVG(SVGObject):
         return self.attributes.get('height', None)
 
 
+class SubSVG(SVGObject):
+
+    def __init__(self, id, style, x, y, width, height, view_box=None, children=None):
+        super(SubSVG, self).__init__("svg", id, style, False, children, {
+            "x": x,
+            "y": y,
+            "width": width,
+            "height": height,
+            "viewBox": view_box,
+        })
+
+        self.attribute_order = ["x", "y", "width", "height"] + self.attribute_order
+
+    def get_x(self):
+        return self.attributes.get('x', None)
+
+    def get_y(self):
+        return self.attributes.get('y', None)
+
+    def get_width(self):
+        return self.attributes.get('width', None)
+
+    def get_height(self):
+        return self.attributes.get('height', None)
+
+
 class Rectangle(SVGObject):
 
     def __init__(self, id, x, y, width, height, style=None):
-         super(Rectangle, self).__init__("rect", id, style, True, None, {
-             "x": x,
-             "y": y,
+        super(Rectangle, self).__init__("rect", id, style, True, None, {
+            "x": x,
+            "y": y,
             "width": width,
             "height": height
-         })
-         self.attribute_order += ["x", "y", "width", "height"]
+        })
+        self.attribute_order += ["x", "y", "width", "height"]
 
     def get_width(self):
         return self.attributes.get('width', None)
@@ -149,11 +232,12 @@ class Rectangle(SVGObject):
     def get_y(self):
         return self.attributes.get('y', None)
 
+
 class Line(SVGObject):
 
     def __init__(self, id, x1, y1, x2, y2, style):
         super(Line, self).__init__("path", id, style, True, None, {
-            "d": "m {0},{1} {2},{3}".format(x1, y1, x2, y2)
+            "d": "M {0},{1} {2},{3}".format(x1, y1, x2, y2)
         })
 
         self.attribute_order = ["d"] + self.attribute_order
@@ -167,6 +251,7 @@ class Text(SVGObject):
             'y': y
         })
         self.attribute_order = ['x', 'y']
+
 
 class RawText(object):
     def __init__(self, text):

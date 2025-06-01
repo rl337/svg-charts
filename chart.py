@@ -4,7 +4,12 @@ class Skin(object):
 
     def __init__(self):
         self.title = svg.Style(font=svg.SansSerif('12px'))
-        self.outline = svg.Style(stroke="grey", fill="None", stroke_width=2)
+        self.outer_border = svg.Style(stroke="grey", fill="white", stroke_width=2)
+        self.inner_border = svg.Style(stroke="grey", fill="#E0E0E0", stroke_width=2)
+        self.shape = svg.Style(stroke="black", fill=None, stroke_width=1)
+        self.divisions = svg.Style(stroke="grey", fill=None, stroke_width=1, stroke_opacity="0.4")
+        self.y_scale = 0.97
+        self.y_divisions = 8
 
 class ChartData(object):
 
@@ -56,8 +61,8 @@ class Chart(svg.SVGObject):
             None,
             False,
             [
+                svg.Rectangle("{0}-outline".format(id), 0, 0, width, height, self.skin.outer_border),
                 svg.Text("{0}-title".format(id), 0, 12, title, self.skin.title),
-                svg.Rectangle("{0}-outline".format(id), 0, 0, width, height, self.skin.outline)
             ]
         )
         self.children += self.create_chart()
@@ -102,7 +107,21 @@ class BarChart(Chart):
         if min_y is None or max_y is None:
             return []
 
-        bars = []
+        y_division_height = float(max_y - min_y) / self.skin.y_divisions
+        y_divisions = [ y_division_height * x + min_y for x in range(self.skin.y_divisions)]
+        if min_x < 0 < max_x:
+            y_divisions.append(0.0)
+
+        bars = [
+            svg.Rectangle(
+                "{0}-bars-outline".format(self.get_id()),
+                0,
+                0,
+                "100",
+                "100",
+                self.skin.inner_border
+            )
+        ]
         for series_idx in range(len(self.data.series_order)):
             color = self.colors[series_idx][0]
             series_name = self.data.series_order[series_idx]
@@ -115,22 +134,48 @@ class BarChart(Chart):
             else:
                 raise Exception("ChartData.data must be Dict[List[Number]] or Dict[Dict[Any, Number]]")
             data_point_count = len(data_points)
-            bar_width = 100 / data_point_count
+            bar_width = 100.0 / data_point_count
             for data_point_idx in range(len(data_points)):
                 data_point = data_points[data_point_idx]
                 data_value = series_data[data_point]
 
                 # x, y, width, height are all going to be relative to 100%
                 x = data_point_idx * bar_width
-                y = 0
-                bar_height = 100 * data_value / max_y
+                bar_height = self.skin.y_scale * 100 * data_value / max_y
+                y = 100 - bar_height
+
+                bar_style = self.skin.shape.copy()
+                bar_style.set_fill(color)
 
                 bars.append(svg.Rectangle(
                     "{0}-{1}-{2}".format(self.get_id(), series_name, data_point_idx),
-                    x,
-                    y,
-                    bar_width,
-                    bar_height
+                    "{:0.4f}".format(x),
+                    "{:0.4f}".format(y),
+                    "{:0.4f}".format(bar_width),
+                    "{:0.4f}".format(bar_height),
+                    bar_style
                 ))
 
-        return bars
+        for y_division in y_divisions:
+            division_height = self.skin.y_scale * 100 * y_division / max_y
+            y = 100 - division_height
+            bars.append(svg.Line(
+                "{0}-{1}-{2}".format(self.get_id(), "y", y_division),
+                "0",
+                "{:0.4f}".format(y),
+                "100",
+                "{:0.4f}".format(y),
+                self.skin.divisions
+            ))
+
+        return [
+            svg.SubSVG(
+                "{0}-bars".format(self.get_id()),
+                self.skin.inner_border,
+                "5%",
+                "10%",
+                "90%",
+                "80%",
+                view_box="0 0 100 100",
+                children=bars)
+        ]
